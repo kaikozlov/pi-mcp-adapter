@@ -267,6 +267,7 @@ export default function mcpAdapter(pi: ExtensionAPI) {
         regex: Type.Optional(Type.Boolean({ description: "Treat search as regex (default: substring match)" })),
         includeSchemas: Type.Optional(Type.Boolean({ description: "Include parameter schemas in search results (default: true)" })),
         server: Type.Optional(Type.String({ description: "Filter to specific server (also disambiguates tool calls)" })),
+        timeout: Type.Optional(Type.Number({ description: "Timeout in seconds for tool calls (default: 60)" })),
         action: Type.Optional(Type.String({ description: "Action: 'ui-messages', 'auth-start', or 'auth-complete'" })),
       }),
       renderResult: renderMcpToolResult,
@@ -279,6 +280,7 @@ export default function mcpAdapter(pi: ExtensionAPI) {
         regex?: boolean;
         includeSchemas?: boolean;
         server?: string;
+        timeout?: number;
         action?: string;
       }, signal, _onUpdate, _ctx) {
         let parsedArgs: Record<string, unknown> | undefined;
@@ -344,7 +346,8 @@ export default function mcpAdapter(pi: ExtensionAPI) {
           return executeAuthComplete(state, params.server, input);
         }
         if (params.tool) {
-          return executeCall(state, params.tool, parsedArgs, params.server, getPiTools, signal);
+          const timeoutMs = params.timeout ? params.timeout * 1000 : undefined;
+          return executeCall(state, params.tool, parsedArgs, params.server, getPiTools, signal, timeoutMs);
         }
         if (params.connect) {
           return executeConnect(state, params.connect, signal);

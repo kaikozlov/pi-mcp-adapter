@@ -18,6 +18,7 @@ export interface McpProxyToolCallInput {
   regex?: boolean;
   includeSchemas?: boolean;
   server?: string;
+  timeout?: number;
   action?: string;
 }
 
@@ -65,7 +66,8 @@ export function formatMcpProxyToolCallLines(
 
   if (args.tool) {
     const target = args.server ? `${args.tool} @ ${args.server}` : args.tool;
-    const lines = [`mcp call ${target}`];
+    const timeout = args.timeout ? ` (timeout ${args.timeout}s)` : "";
+    const lines = [`mcp call ${target}${timeout}`];
     if (args.args) lines.push(formatJsonish(args.args, maxInputChars));
     return lines;
   }
