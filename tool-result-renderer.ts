@@ -94,8 +94,10 @@ export function formatMcpDirectToolCallLines(
   args: Record<string, unknown>,
   maxInputChars = DEFAULT_MAX_CALL_INPUT_CHARS,
 ): string[] {
-  if (!hasUsefulObjectContent(args)) return [displayName];
-  return [displayName, formatJsonish(args, maxInputChars)];
+  const { timeout, ...toolArgs } = args;
+  const title = timeout ? `${displayName} (timeout ${timeout}s)` : displayName;
+  if (!hasUsefulObjectContent(toolArgs)) return [title];
+  return [title, formatJsonish(toolArgs, maxInputChars)];
 }
 
 function renderToolCallLines(lines: string[], theme: RenderTheme) {

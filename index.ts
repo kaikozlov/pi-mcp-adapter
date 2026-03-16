@@ -68,12 +68,20 @@ export default function mcpAdapter(pi: ExtensionAPI) {
     || missingConfiguredDirectToolServers.length > 0;
 
   for (const spec of directSpecs) {
+    const baseSchema = normalizeDirectToolInputSchema(spec.inputSchema);
+    const schemaWithTimeout = {
+      ...baseSchema,
+      properties: {
+        ...(baseSchema.properties as Record<string, unknown> | undefined),
+        timeout: { type: "number", description: "Timeout in seconds for this tool call (default: 60)" },
+      },
+    };
     (pi.registerTool as (tool: unknown) => unknown)({
       name: spec.prefixedName,
       label: `MCP: ${spec.originalName}`,
       description: spec.description || "(no description)",
       promptSnippet: truncateAtWord(spec.description, 100) || `MCP tool from ${spec.serverName}`,
-      parameters: Type.Unsafe(normalizeDirectToolInputSchema(spec.inputSchema) as never),
+      parameters: Type.Unsafe(schemaWithTimeout as never),
       execute: createDirectToolExecutor(() => state, () => initPromise, spec),
       renderCall: createMcpDirectToolCallRenderer(spec.prefixedName),
       renderResult: renderMcpToolResult,
