@@ -86,7 +86,7 @@ export function formatMcpProxyToolCallLines(
   if (args.server) return [`mcp list ${args.server}`];
   if (args.action) return [`mcp ${args.action}`];
 
-  return ["mcp status"];
+  return ["mcp"];
 }
 
 export function formatMcpDirectToolCallLines(
