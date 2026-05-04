@@ -13,7 +13,7 @@ function getTokensPath(serverName: string): string {
  * Returns undefined if no tokens or tokens are expired.
  * 
  * Token file location: $MCP_OAUTH_DIR/sha256-<server-hash>/tokens.json when set,
- * otherwise <Pi agent dir>/mcp-oauth/sha256-<server-hash>/tokens.json
+ * otherwise <Pi agent dir>/extensions/data/pi-mcp-adapter/oauth/sha256-<server-hash>/tokens.json
  * 
  * Expected format:
  * {

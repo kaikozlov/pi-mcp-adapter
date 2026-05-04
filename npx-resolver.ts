@@ -3,9 +3,11 @@ import { existsSync, readFileSync, realpathSync, readdirSync, statSync, writeFil
 import { join, dirname, extname, resolve, sep } from "node:path";
 import { getAgentPath } from "./agent-dir.ts";
 import { spawn, spawnSync } from "node:child_process";
+import { DATA_DIR } from "./data-dir.ts";
 
 const CACHE_VERSION = 1;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const CACHE_PATH = join(DATA_DIR, "npx-cache.json");
 
 interface NpxCacheEntry {
   resolvedBin: string;
@@ -369,7 +371,7 @@ function getNpmCacheDir(): string | null {
 }
 
 function getNpxCachePath(): string {
-  return getAgentPath("mcp-npx-cache.json");
+  return CACHE_PATH;
 }
 
 function loadCache(): NpxCache | null {

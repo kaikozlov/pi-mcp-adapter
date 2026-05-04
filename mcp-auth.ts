@@ -5,13 +5,13 @@
  * and PKCE state for MCP servers.
  * 
  * Token storage location: $MCP_OAUTH_DIR/sha256-<server-hash>/tokens.json when set,
- * otherwise <Pi agent dir>/mcp-oauth/sha256-<server-hash>/tokens.json
+ * otherwise <Pi agent dir>/extensions/data/pi-mcp-adapter/oauth/sha256-<server-hash>/tokens.json
  */
 
 import { createHash } from 'crypto';
 import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'fs';
 import { join } from 'path';
-import { getAgentPath } from './agent-dir.ts';
+import { DATA_DIR } from './data-dir.ts';
 
 /** OAuth token storage format */
 export interface StoredTokens {
@@ -42,7 +42,7 @@ export interface AuthEntry {
 // Base directory for auth storage - can be overridden via env var for testing
 function getAuthBaseDir(): string {
   const override = process.env.MCP_OAUTH_DIR?.trim();
-  return override ? override : getAgentPath('mcp-oauth');
+  return override ? override : join(DATA_DIR, 'oauth');
 }
 
 /**
