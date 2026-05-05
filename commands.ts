@@ -9,6 +9,7 @@ import {
   previewSharedServerEntry,
   previewStarterProjectConfig,
   writeDirectToolsConfig,
+  writeDisabledConfig,
   writeSharedServerEntry,
   writeStarterProjectConfig,
 } from "./config.ts";
@@ -98,6 +99,12 @@ export async function reconnectServers(
     : Object.entries(state.config.mcpServers);
 
   for (const [name, definition] of entries) {
+    if (definition.disabled) {
+      if (ctx.hasUI) {
+        ctx.ui.notify(`Server "${name}" is disabled. Enable it first.`, "error");
+      }
+      continue;
+    }
     try {
       await state.manager.close(name);
 
@@ -368,10 +375,20 @@ export async function openMcpPanel(
     ctx.ui.custom(
       (tui, _theme, keybindings, done) => {
         return createMcpPanel(config, cache, provenanceMap, callbacks, tui, (result: McpPanelResult) => {
-          if (!result.cancelled && result.changes.size > 0) {
-            writeDirectToolsConfig(result.changes, provenanceMap, config);
-            configChanged = true;
-            ctx.ui.notify("Direct tools updated. Pi will reload after this panel closes.", "info");
+          if (!result.cancelled) {
+            let needsRestart = false;
+            if (result.changes.size > 0) {
+              writeDirectToolsConfig(result.changes, provenanceMap, config);
+              needsRestart = true;
+            }
+            if (result.disabledChanges.size > 0) {
+              writeDisabledConfig(result.disabledChanges, provenanceMap, config);
+              needsRestart = true;
+            }
+            if (needsRestart) {
+              configChanged = true;
+              ctx.ui.notify("MCP settings updated. Pi will reload after this panel closes.", "info");
+            }
           }
           done(undefined);
           resolve();

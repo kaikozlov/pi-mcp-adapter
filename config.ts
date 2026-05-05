@@ -639,6 +639,61 @@ export function getServerProvenance(overridePath?: string, cwd = process.cwd()):
   return provenance;
 }
 
+export function writeDisabledConfig(
+  disabledChanges: Map<string, boolean>,
+  provenance: Map<string, ServerProvenance>,
+  fullConfig: McpConfig,
+): void {
+  const byPath = new Map<string, { name: string; value: boolean; prov: ServerProvenance }[]>();
+
+  for (const [serverName, value] of disabledChanges) {
+    const prov = provenance.get(serverName);
+    if (!prov) continue;
+
+    if (!byPath.has(prov.path)) byPath.set(prov.path, []);
+    byPath.get(prov.path)!.push({ name: serverName, value, prov });
+  }
+
+  for (const [filePath, entries] of byPath) {
+    let raw: Record<string, unknown> = {};
+    if (existsSync(filePath)) {
+      try {
+        raw = JSON.parse(readFileSync(filePath, "utf-8"));
+      } catch {}
+    }
+    if (!raw || typeof raw !== "object") raw = {};
+
+    const servers = (raw.mcpServers ?? raw["mcp-servers"] ?? {}) as Record<string, ServerEntry>;
+    if (typeof servers !== "object" || Array.isArray(servers)) continue;
+
+    for (const { name, value, prov } of entries) {
+      if (prov.kind === "import") {
+        // For imported servers, copy the full definition into user config with disabled flag
+        const fullDef = fullConfig.mcpServers[name];
+        if (fullDef) {
+          servers[name] = { ...fullDef, disabled: value };
+        }
+      } else if (servers[name]) {
+        if (value) {
+          servers[name] = { ...servers[name], disabled: true };
+        } else {
+          // Remove the disabled field entirely when re-enabling
+          const { disabled: _, ...rest } = servers[name];
+          servers[name] = rest;
+        }
+      }
+    }
+
+    const key = raw["mcp-servers"] && !raw.mcpServers ? "mcp-servers" : "mcpServers";
+    raw[key] = servers;
+
+    mkdirSync(dirname(filePath), { recursive: true });
+    const tmpPath = `${filePath}.${process.pid}.tmp`;
+    writeFileSync(tmpPath, JSON.stringify(raw, null, 2) + "\n", "utf-8");
+    renameSync(tmpPath, filePath);
+  }
+}
+
 export function writeDirectToolsConfig(
   changes: Map<string, true | string[] | false>,
   provenance: Map<string, ServerProvenance>,

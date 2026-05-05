@@ -142,6 +142,8 @@ interface ServerState {
   connectionStatus: ConnectionStatus;
   tools: ToolState[];
   hasCachedData: boolean;
+  disabled: boolean;
+  wasDisabled: boolean;
 }
 
 interface VisibleItem {
@@ -250,6 +252,8 @@ class McpPanel {
         connectionStatus: status,
         tools,
         hasCachedData: !!serverCache,
+        disabled: !!definition.disabled,
+        wasDisabled: !!definition.disabled,
       });
     }
 
@@ -261,7 +265,7 @@ class McpPanel {
     if (this.inactivityTimeout) clearTimeout(this.inactivityTimeout);
     this.inactivityTimeout = setTimeout(() => {
       this.cleanup();
-      this.done({ cancelled: true, changes: new Map() });
+      this.done({ cancelled: true, changes: new Map(), disabledChanges: new Map() });
     }, McpPanel.INACTIVITY_MS);
   }
 
@@ -318,11 +322,14 @@ class McpPanel {
   }
 
   private updateDirty(): void {
-    this.dirty = this.servers.some((s) => s.tools.some((t) => t.isDirect !== t.wasDirect));
+    this.dirty = this.servers.some(
+      (s) => s.tools.some((t) => t.isDirect !== t.wasDirect) || s.disabled !== s.wasDisabled,
+    );
   }
 
   private buildResult(): McpPanelResult {
     const changes = new Map<string, true | string[] | false>();
+    const disabledChanges = new Map<string, boolean>();
     for (const server of this.servers) {
       const changed = server.tools.some((t) => t.isDirect !== t.wasDirect);
       if (!changed) continue;
@@ -335,7 +342,12 @@ class McpPanel {
         changes.set(server.name, directTools.map((t) => t.name));
       }
     }
-    return { changes, cancelled: false };
+    for (const server of this.servers) {
+      if (server.disabled !== server.wasDisabled) {
+        disabledChanges.set(server.name, server.disabled);
+      }
+    }
+    return { changes, disabledChanges, cancelled: false };
   }
 
   handleInput(data: string): void {
@@ -351,7 +363,7 @@ class McpPanel {
     // Global shortcuts — always work, even during desc search
     if (matchesKey(data, "ctrl+c")) {
       this.cleanup();
-      this.done({ cancelled: true, changes: new Map() });
+      this.done({ cancelled: true, changes: new Map(), disabledChanges: new Map() });
       return;
     }
 
@@ -408,7 +420,7 @@ class McpPanel {
         return;
       }
       this.cleanup();
-      this.done({ cancelled: true, changes: new Map() });
+      this.done({ cancelled: true, changes: new Map(), disabledChanges: new Map() });
       return;
     }
 
@@ -454,6 +466,7 @@ class McpPanel {
       const item = this.visibleItems[this.cursorIndex];
       if (!item) return;
       const server = this.servers[item.serverIndex];
+      if (server.disabled) return;
       if (server.connectionStatus === "connecting") return;
       server.connectionStatus = "connecting";
       this.callbacks.reconnect(server.name).then(() => {
@@ -480,6 +493,21 @@ class McpPanel {
       if (this.authOnly) return;
       this.descSearchActive = true;
       this.descQuery = "";
+      this.rebuildVisibleItems();
+      this.cursorIndex = Math.min(this.cursorIndex, Math.max(0, this.visibleItems.length - 1));
+      return;
+    }
+
+    // 'd' toggles disabled state on the current server
+    if (data === "d" || data === "D") {
+      const item = this.visibleItems[this.cursorIndex];
+      if (!item) return;
+      const server = this.servers[item.serverIndex];
+      server.disabled = !server.disabled;
+      if (server.disabled) {
+        server.expanded = false;
+      }
+      this.updateDirty();
       this.rebuildVisibleItems();
       this.cursorIndex = Math.min(this.cursorIndex, Math.max(0, this.visibleItems.length - 1));
       return;
@@ -559,7 +587,7 @@ class McpPanel {
   private handleDiscardInput(data: string): void {
     if (matchesKey(data, "ctrl+c")) {
       this.cleanup();
-      this.done({ cancelled: true, changes: new Map() });
+      this.done({ cancelled: true, changes: new Map(), disabledChanges: new Map() });
       return;
     }
     if (matchesKey(data, "escape") || data === "n" || data === "N") {
@@ -569,7 +597,7 @@ class McpPanel {
     if (this.keys.selectConfirm(data)) {
       this.cleanup();
       if (this.discardSelected === 0) {
-        this.done({ cancelled: true, changes: new Map() });
+        this.done({ cancelled: true, changes: new Map(), disabledChanges: new Map() });
       } else {
         this.done(this.buildResult());
       }
@@ -577,7 +605,7 @@ class McpPanel {
     }
     if (data === "y" || data === "Y") {
       this.cleanup();
-      this.done({ cancelled: true, changes: new Map() });
+      this.done({ cancelled: true, changes: new Map(), disabledChanges: new Map() });
       return;
     }
     if (matchesKey(data, "left") || matchesKey(data, "right") || matchesKey(data, "tab")) {
@@ -757,6 +785,7 @@ class McpPanel {
           italic("↑↓") + " navigate",
           italic("space") + " toggle",
           italic("⏎") + " expand/auth",
+          italic("d") + " disable",
           italic("ctrl+a") + " auth",
           italic("ctrl+r") + " reconnect",
           italic("?") + " desc search",
@@ -791,6 +820,7 @@ class McpPanel {
   private renderServerRow(server: ServerState, isCursor: boolean): string {
     const t = this.t;
     const bold = (s: string) => `\x1b[1m${s}\x1b[22m`;
+    const dim = (s: string) => `\x1b[2m${s}\x1b[22m`;
 
     const expandIcon = server.expanded ? "▾" : "▸";
     const prefix = isCursor ? fg(t.selected, expandIcon) : fg(t.border, server.expanded ? expandIcon : "·");
@@ -800,6 +830,13 @@ class McpPanel {
     const nameStr = isCursor ? bold(fg(t.selected, serverName)) : serverName;
     const importLabel = server.source === "import" ? fg(t.description, ` (${importKind})`) : "";
     const statusLabel = this.renderConnectionStatus(server);
+
+    if (server.disabled) {
+      const disabledNameStr = isCursor ? bold(fg(t.selected, serverName)) : dim(serverName);
+      const disabledIcon = fg(t.cancel, "\u2298");
+      const tag = fg(t.cancel, "disabled");
+      return `${prefix} ${disabledIcon} ${disabledNameStr}${importLabel}  ${tag}`;
+    }
 
     if (!server.hasCachedData && !this.authOnly) {
       return `${prefix}   ${nameStr}${importLabel}  ${fg(t.description, "(not cached)")}${statusLabel}`;

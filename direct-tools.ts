@@ -108,6 +108,7 @@ export function resolveDirectTools(
   const globalDirect = config.settings?.directTools;
 
   for (const [serverName, definition] of Object.entries(config.mcpServers)) {
+    if (definition.disabled) continue;
     const serverCache = cache.servers[serverName];
     if (!serverCache || !isServerCacheValid(serverCache, definition)) continue;
 
@@ -190,6 +191,7 @@ export function getMissingConfiguredDirectToolServers(
   const globalDirect = config.settings?.directTools;
 
   for (const [serverName, definition] of Object.entries(config.mcpServers)) {
+    if (definition.disabled) continue;
     const hasDirectTools = definition.directTools !== undefined
       ? !!definition.directTools
       : !!globalDirect;
@@ -228,6 +230,7 @@ export function buildProxyDescription(
   for (const serverName of Object.keys(config.mcpServers)) {
     const entry = cache?.servers?.[serverName];
     const definition = config.mcpServers[serverName];
+    if (definition?.disabled) continue;
     const toolCount = (entry?.tools ?? []).filter(
       (tool) => !isToolExcluded(tool.name, serverName, prefix, definition.excludeTools),
     ).length;

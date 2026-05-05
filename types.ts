@@ -316,6 +316,8 @@ export interface ServerEntry {
   excludeTools?: string[];
   // Debug
   debug?: boolean;  // Show server stderr (default: false)
+  // Toggle
+  disabled?: boolean; // If true, server is ignored entirely (not connected, tools hidden)
 }
 
 // Output guard tuning (settings.outputGuard object form)
@@ -406,6 +408,7 @@ export interface McpPanelCallbacks {
 
 export interface McpPanelResult {
   changes: Map<string, true | string[] | false>;
+  disabledChanges: Map<string, boolean>;
   cancelled: boolean;
 }
 

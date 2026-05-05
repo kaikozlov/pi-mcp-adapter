@@ -77,7 +77,7 @@ export async function initializeMcp(
     sendMessage: (message, options) => pi.sendMessage(message as unknown as Parameters<typeof pi.sendMessage>[0], options),
   };
 
-  const serverEntries = Object.entries(config.mcpServers);
+  const serverEntries = Object.entries(config.mcpServers).filter(([, def]) => !def.disabled);
   if (serverEntries.length === 0) {
     return state;
   }
@@ -300,6 +300,9 @@ export function getFailureAgeSeconds(state: McpExtensionState, serverName: strin
 }
 
 export async function lazyConnect(state: McpExtensionState, serverName: string, signal?: AbortSignal): Promise<boolean> {
+  const definition = state.config.mcpServers[serverName];
+  if (definition?.disabled) return false;
+
   const connection = state.manager.getConnection(serverName);
   if (connection?.status === "needs-auth") {
     return false;
@@ -312,7 +315,6 @@ export async function lazyConnect(state: McpExtensionState, serverName: string, 
   const failedAgo = getFailureAgeSeconds(state, serverName);
   if (failedAgo !== null) return false;
 
-  const definition = state.config.mcpServers[serverName];
   if (!definition) return false;
 
   try {

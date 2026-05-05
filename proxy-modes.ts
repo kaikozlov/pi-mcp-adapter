@@ -194,12 +194,15 @@ export function executeStatus(state: McpExtensionState): ProxyToolResult {
   const servers: Array<{ name: string; status: string; toolCount: number; failedAgo: number | null }> = [];
 
   for (const name of Object.keys(state.config.mcpServers)) {
+    const def = state.config.mcpServers[name];
     const connection = state.manager.getConnection(name);
     const metadata = state.toolMetadata.get(name);
     const toolCount = metadata?.length ?? 0;
     const failedAgo = getFailureAgeSeconds(state, name);
     let status = "not connected";
-    if (connection?.status === "connected") {
+    if (def.disabled) {
+      status = "disabled";
+    } else if (connection?.status === "connected") {
       status = "connected";
     } else if (connection?.status === "needs-auth") {
       status = "needs-auth";
@@ -217,6 +220,10 @@ export function executeStatus(state: McpExtensionState): ProxyToolResult {
 
   let text = `MCP: ${connectedCount}/${servers.length} servers, ${totalTools} tools\n\n`;
   for (const server of servers) {
+    if (server.status === "disabled") {
+      text += `⊘ ${server.name} (disabled)\n`;
+      continue;
+    }
     if (server.status === "connected") {
       text += `✓ ${server.name} (${server.toolCount} tools)\n`;
       continue;
@@ -416,6 +423,7 @@ export function executeSearch(
 
   for (const [serverName, metadata] of state.toolMetadata.entries()) {
     if (server && serverName !== server) continue;
+    if (state.config.mcpServers[serverName]?.disabled) continue;
     for (const tool of metadata) {
       if (pattern.test(tool.name) || pattern.test(tool.description)) {
         matches.push({
@@ -471,10 +479,17 @@ export function executeSearch(
 }
 
 export function executeList(state: McpExtensionState, server: string): ProxyToolResult {
-  if (!state.config.mcpServers[server]) {
+  const definition = state.config.mcpServers[server];
+  if (!definition) {
     return {
       content: [{ type: "text" as const, text: `Server "${server}" not found. Use mcp({}) to see available servers.` }],
       details: { mode: "list", server, tools: [], count: 0, error: "not_found" },
+    };
+  }
+  if (definition.disabled) {
+    return {
+      content: [{ type: "text" as const, text: `Server "${server}" is disabled. Enable it in /mcp to see tools.` }],
+      details: { mode: "list", server, tools: [], count: 0, error: "disabled" },
     };
   }
 
@@ -532,6 +547,12 @@ export async function executeConnect(state: McpExtensionState, serverName: strin
     return {
       content: [{ type: "text" as const, text: `Server "${serverName}" not found. Use mcp({}) to see available servers.` }],
       details: { mode: "connect", error: "not_found", server: serverName },
+    };
+  }
+  if (definition.disabled) {
+    return {
+      content: [{ type: "text" as const, text: `Server "${serverName}" is disabled. Enable it in /mcp to connect.` }],
+      details: { mode: "connect", error: "disabled", server: serverName },
     };
   }
 
@@ -599,6 +620,13 @@ export async function executeCall(
     return {
       content: [{ type: "text" as const, text: `Server "${serverName}" not found. Use mcp({}) to see available servers.` }],
       details: { mode: "call", error: "server_not_found", server: serverName },
+    };
+  }
+
+  if (serverName && state.config.mcpServers[serverName]?.disabled) {
+    return {
+      content: [{ type: "text" as const, text: `Server "${serverName}" is disabled. Enable it in /mcp to use its tools.` }],
+      details: { mode: "call", error: "disabled", server: serverName },
     };
   }
 
