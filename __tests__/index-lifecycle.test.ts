@@ -332,6 +332,7 @@ describe("mcpAdapter session lifecycle", () => {
       undefined,
       expect.any(Function),
       controller.signal,
+      undefined,
     );
   });
 

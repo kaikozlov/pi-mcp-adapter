@@ -37,7 +37,7 @@ describe("MCP tool call renderer", () => {
     ]);
     expect(formatMcpProxyToolCallLines({ connect: "cf-portal" })).toEqual(["mcp connect cf-portal"]);
     expect(formatMcpProxyToolCallLines({ server: "cf-portal" })).toEqual(["mcp list cf-portal"]);
-    expect(formatMcpProxyToolCallLines({})).toEqual(["mcp status"]);
+    expect(formatMcpProxyToolCallLines({})).toEqual(["mcp"]);
   });
 
   it("renders ui-messages with execution precedence", () => {

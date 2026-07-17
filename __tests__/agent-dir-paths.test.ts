@@ -41,12 +41,12 @@ describe("Pi agent dir paths", () => {
 
     expect(getAgentDir()).toBe(agentDir);
     expect(getPiGlobalConfigPath()).toBe(join(agentDir, "mcp.json"));
-    expect(getMetadataCachePath()).toBe(join(agentDir, "mcp-cache.json"));
+    expect(getMetadataCachePath()).toBe(join(agentDir, "extensions", "data", "pi-mcp-adapter", "cache.json"));
     expect(getOnboardingStatePath()).toBe(join(agentDir, "mcp-onboarding.json"));
 
     saveAuthEntry("demo", { tokens: { accessToken: "token" } }, "https://example.com/mcp");
     expect(existsSync(getAuthEntryFilePath("demo"))).toBe(true);
-    expect(getAuthEntryFilePath("demo").startsWith(join(agentDir, "mcp-oauth"))).toBe(true);
+    expect(getAuthEntryFilePath("demo").startsWith(join(agentDir, "extensions", "data", "pi-mcp-adapter", "oauth"))).toBe(true);
     expect(existsSync(join(agentDir, "mcp-oauth", "demo", "tokens.json"))).toBe(false);
     expect(existsSync(join(home, ".pi", "agent", "mcp-oauth", "demo", "tokens.json"))).toBe(false);
   });

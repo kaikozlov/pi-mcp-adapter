@@ -26,7 +26,7 @@ describe("npx-resolver", () => {
     }
   });
 
-  it("writes mcp-npx-cache.json to PI_CODING_AGENT_DIR", async () => {
+  it("writes the NPX cache to the unified data directory", async () => {
     const home = mkdtempSync(join(tmpdir(), "pi-mcp-npx-home-"));
     const agentDir = mkdtempSync(join(tmpdir(), "pi-mcp-npx-agent-"));
     const npmCache = mkdtempSync(join(tmpdir(), "pi-mcp-npx-cache-"));
@@ -41,7 +41,7 @@ describe("npx-resolver", () => {
     const result = await resolveNpxBinary("npx", ["-y", "demo-pkg"]);
 
     expect(result).not.toBeNull();
-    expect(existsSync(join(agentDir, "mcp-npx-cache.json"))).toBe(true);
+    expect(existsSync(join(agentDir, "extensions", "data", "pi-mcp-adapter", "npx-cache.json"))).toBe(true);
     expect(existsSync(join(home, ".pi", "agent", "mcp-npx-cache.json"))).toBe(false);
   });
 
